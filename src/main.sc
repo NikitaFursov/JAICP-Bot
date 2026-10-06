@@ -1,843 +1,414 @@
-require: functions.js
+init:
+
+    $global.createOrder = function() {
+        return {
+            pizzaName: null,
+            pizzaSize: null,
+            pizzaBase: null,
+            pizzaTopping: null,
+            spiciness: null,
+            quantity: null,
+            address: null,
+            phone: null,
+            deliveryTime: null,
+            paymentMethod: null,
+            unitPrice: 0,
+            subtotal: 0,
+            delivery: 0,
+            total: 0
+        };
+    };
+
+    $global.getSlot = function(parseTree, name) {
+        var node = parseTree["_" + name];
+
+        if (node !== undefined && node !== null) {
+            return node;
+        }
+
+        return null;
+    };
+
+    $global.saveSlots = function(order, parseTree) {
+        var v;
+
+        v = $global.getSlot(parseTree, "PizzaName");
+        if (v) order.pizzaName = v;
+
+        v = $global.getSlot(parseTree, "PizzaSize");
+        if (v) order.pizzaSize = v;
+
+        v = $global.getSlot(parseTree, "PizzaBase");
+        if (v) order.pizzaBase = v;
+
+        v = $global.getSlot(parseTree, "PizzaTopping");
+        if (v) order.pizzaTopping = v;
+
+        v = $global.getSlot(parseTree, "Spiciness");
+        if (v) order.spiciness = v;
+
+        v = $global.getSlot(parseTree, "Quantity");
+        if (v) order.quantity = Number(v);
+
+        v = $global.getSlot(parseTree, "DeliveryTime");
+        if (v) order.deliveryTime = v;
+
+        v = $global.getSlot(parseTree, "PaymentMethod");
+        if (v) order.paymentMethod = v;
+    };
+
+    $global.nextState = function(o) {
+        var m = [];
+
+        if (!o.pizzaName) m.push("/AskPizzaName");
+        if (!o.pizzaSize) m.push("/AskPizzaSize");
+        if (!o.pizzaBase) m.push("/AskPizzaBase");
+        if (!o.pizzaTopping) m.push("/AskPizzaTopping");
+        if (!o.spiciness) m.push("/AskSpiciness");
+        if (!o.quantity) m.push("/AskQuantity");
+        if (!o.address) m.push("/AskAddress");
+        if (!o.phone) m.push("/AskPhone");
+        if (!o.deliveryTime) m.push("/AskDeliveryTime");
+        if (!o.paymentMethod) m.push("/AskPaymentMethod");
+
+        if (m.length === 0) {
+            return "/CheckOrder";
+        }
+
+        return m[$jsapi.random(m.length)];
+    };
+
+    $global.calc = function(o) {
+        var prices = {
+            "Маргарита": 550,
+            "Американа": 650,
+            "Американа Hot": 750,
+            "Сохо": 700
+        };
+
+        var p = prices[o.pizzaName] || 600;
+
+        if (o.pizzaSize === "большая") p += 100;
+        if (o.pizzaSize === "маленькая") p -= 50;
+
+        if (o.pizzaBase === "толстая") p += 100;
+        if (o.pizzaBase === "американская") p += 150;
+
+        if (o.pizzaTopping === "пепперони") p += 150;
+        if (o.pizzaTopping === "моцарелла") p += 80;
+        if (o.pizzaTopping === "томаты") p += 50;
+        if (o.pizzaTopping === "оливки") p += 60;
+        if (o.pizzaTopping === "халапеньо") p += 70;
+
+        if (o.spiciness === "средняя") p += 50;
+        if (o.spiciness === "острая") p += 80;
+
+        o.unitPrice = p;
+        o.subtotal = p * (Number(o.quantity) || 1);
+        o.delivery = o.subtotal >= 2000 ? 0 : 150;
+        o.total = o.subtotal + o.delivery;
+    };
+
+    $global.orderText = function(o) {
+        $global.calc(o);
+
+        return "Заказ:\n"
+            + "Пицца: " + (o.pizzaName || "—") + "\n"
+            + "Размер: " + (o.pizzaSize || "—") + "\n"
+            + "Основа: " + (o.pizzaBase || "—") + "\n"
+            + "Начинка: " + (o.pizzaTopping || "—") + "\n"
+            + "Острота: " + (o.spiciness || "—") + "\n"
+            + "Количество: " + (o.quantity || "—") + "\n"
+            + "Адрес: " + (o.address || "—") + "\n"
+            + "Телефон: " + (o.phone || "—") + "\n"
+            + "Время: " + (o.deliveryTime || "—") + "\n"
+            + "Оплата: " + (o.paymentMethod || "—") + "\n"
+            + "Итого: " + o.total + " ₽";
+    };
+
 
 theme: /
 
+state: Start
+    q!: $regex</start>
 
-    state: Start
-        q!: $regex</start>
+    script:
+        $session.order = $global.createOrder();
 
-        script:
-            $session.order = createOrder();
-
-        a: Здравствуйте! Я бот пиццерии.
-        a: Помогу оформить заказ пиццы.
-        a: Вы можете сразу написать, например: «Хочу большую острую Американу на тонком тесте с пепперони».
-
-
-    state: Hello
-        q!: * (привет|здравствуй|здравствуйте|добрый день) *
-
-        a: Здравствуйте! Какую пиццу хотите заказать?
+    a: Здравствуйте! Я бот пиццерии.
+    a: Помогу оформить заказ.
+    a: Например: «Хочу большую острую Американу на тонком тесте с пепперони».
 
 
+state: Greeting
+    intent!: /Greeting
 
-    state: OrderPizza
-        intent!: /OrderPizza
-
-        script:
-
-            if (!$session.order) {
-                $session.order =
-                    createOrder();
-            }
-
-            applyOrderSlots(
-                $session.order,
-                $parseTree
-            );
-
-        a: Хорошо, запоминаю ваш заказ.
-
-        go!: /CheckOrder
+    a: Здравствуйте! Чем могу помочь?
 
 
+state: OrderPizza
+    intent!: /OrderPizza
 
-    state: SetPizza
-        intent!: /SetPizza
+    script:
+        if (!$session.order) {
+            $session.order = $global.createOrder();
+        }
 
-        script:
+        $global.saveSlots(
+            $session.order,
+            $parseTree
+        );
 
-            if (!$session.order) {
-                $session.order =
-                    createOrder();
-            }
+        $global.calc(
+            $session.order
+        );
 
-            if ($parseTree._pizza) {
-                $session.order.pizza =
-                    $parseTree._pizza;
-            }
-
-        if: $session.order.pizza
-            a: Выбрана пицца: {{$session.order.pizza.name}}.
-
-        go!: /CheckOrder
+        $reactions.transition(
+            $global.nextState(
+                $session.order
+            )
+        );
 
 
+state: ContinueOrder
+    script:
+        $reactions.transition(
+            $global.nextState(
+                $session.order
+            )
+        );
 
-    state: SetSize
-        intent!: /SetSize
+
+state: AskPizzaName
+
+    a: Какую пиццу хотите?
+    a: Например: Маргариту, Американу или Сохо.
+
+    state: Receive
+        intent: /SetPizza
 
         script:
+            $session.order.pizzaName =
+                $global.getSlot(
+                    $parseTree,
+                    "PizzaName"
+                );
 
-            if (!$session.order) {
-                $session.order =
-                    createOrder();
-            }
-
-            if ($parseTree._size) {
-                $session.order.size =
-                    $parseTree._size;
-            }
-
-        if: $session.order.size
-            a: Размер изменён: {{$session.order.size.name}}.
-
-        go!: /CheckOrder
+        a: Пицца сохранена.
+        go!: /ContinueOrder
 
 
+state: AskPizzaSize
 
-    state: SetBase
-        intent!: /SetBase
+    a: Какой размер пиццы выбрать?
+    a: Маленький, средний или большой?
+
+    state: Receive
+        intent: /SetSize
 
         script:
+            $session.order.pizzaSize =
+                $global.getSlot(
+                    $parseTree,
+                    "PizzaSize"
+                );
 
-            if (!$session.order) {
-                $session.order =
-                    createOrder();
-            }
-
-            if ($parseTree._base) {
-                $session.order.base =
-                    $parseTree._base;
-            }
-
-        if: $session.order.base
-            a: Основа: {{$session.order.base.name}}.
-
-        go!: /CheckOrder
+        a: Размер сохранён.
+        go!: /ContinueOrder
 
 
+state: AskPizzaBase
 
-    state: SetTopping
-        intent!: /SetTopping
+    a: Какую основу выбрать?
+    a: Тонкую, толстую или американскую?
+
+    state: Receive
+        intent: /SetBase
 
         script:
+            $session.order.pizzaBase =
+                $global.getSlot(
+                    $parseTree,
+                    "PizzaBase"
+                );
 
-            if (!$session.order) {
-                $session.order =
-                    createOrder();
-            }
+        a: Основа сохранена.
+        go!: /ContinueOrder
 
-            if ($parseTree._toppings) {
-                $session.order.toppings =
-                    toArray(
-                        $parseTree._toppings
-                    );
-            }
+
+state: AskPizzaTopping
+
+    a: Какую начинку добавить?
+    a: Например: пепперони, моцареллу или оливки.
+
+    state: Receive
+        intent: /SetTopping
+
+        script:
+            $session.order.pizzaTopping =
+                $global.getSlot(
+                    $parseTree,
+                    "PizzaTopping"
+                );
 
         a: Начинка сохранена.
-
-        go!: /CheckOrder
-
+        go!: /ContinueOrder
 
 
-    state: SetSpiciness
-        intent!: /SetSpiciness
+state: AskSpiciness
 
-        script:
+    a: Какую остроту выбрать?
+    a: Неострую, среднюю или острую?
 
-            if (!$session.order) {
-                $session.order =
-                    createOrder();
-            }
-
-            if ($parseTree._spiciness) {
-                $session.order.spiciness =
-                    $parseTree._spiciness;
-            }
-
-        if: $session.order.spiciness
-            a: Острота: {{$session.order.spiciness.name}}.
-
-        go!: /CheckOrder
-
-
-
-    state: SetQuantity
-        intent!: /SetQuantity
+    state: Receive
+        intent: /SetSpiciness
 
         script:
-
-            if (!$session.order) {
-                $session.order =
-                    createOrder();
-            }
-
-            if ($parseTree._quantity) {
-                $session.order.quantity =
-                    $parseTree._quantity;
-            }
-
-        if: $session.order.quantity
-            a: Количество: {{$session.order.quantity}}.
-
-        go!: /CheckOrder
-
-
-
-    state: SetDeliveryTime
-        intent!: /SetDeliveryTime
-
-        script:
-
-            if (!$session.order) {
-                $session.order =
-                    createOrder();
-            }
-
-            if ($parseTree._deliveryTime) {
-                $session.order.deliveryTime =
-                    $parseTree._deliveryTime;
-            }
-
-        if: $session.order.deliveryTime
-            a: Время доставки сохранено.
-
-        go!: /CheckOrder
-
-
-
-    state: SetPaymentMethod
-        intent!: /SetPaymentMethod
-
-        script:
-
-            if (!$session.order) {
-                $session.order =
-                    createOrder();
-            }
-
-            if ($parseTree._payment) {
-                $session.order.paymentMethod =
-                    $parseTree._payment;
-            }
-
-        if: $session.order.paymentMethod
-            a: Способ оплаты: {{$session.order.paymentMethod.name}}.
-
-        go!: /CheckOrder
-
-
-
-    state: CheckOrder
-
-        script:
-
-            if (!$session.order) {
-                $session.order =
-                    createOrder();
-            }
-
-
-            var missing = [];
-
-
-            if (!$session.order.pizza) {
-                missing.push("pizza");
-            }
-
-
-            if (!$session.order.size) {
-                missing.push("size");
-            }
-
-
-            if (!$session.order.base) {
-                missing.push("base");
-            }
-
-
-            if (
-                !$session.order.toppings ||
-                $session.order.toppings.length === 0
-            ) {
-                missing.push("toppings");
-            }
-
-
-            if (!$session.order.spiciness) {
-                missing.push("spiciness");
-            }
-
-
-            if (!$session.order.quantity) {
-                missing.push("quantity");
-            }
-
-
-            if (!$session.order.deliveryAddress) {
-                missing.push("address");
-            }
-
-
-            if (!$session.order.phone) {
-                missing.push("phone");
-            }
-
-
-            if (!$session.order.deliveryTime) {
-                missing.push("deliveryTime");
-            }
-
-
-            if (!$session.order.paymentMethod) {
-                missing.push("payment");
-            }
-
-
-            if (missing.length === 0) {
-
-                $reactions.transition(
-                    "/ConfirmOrder"
+            $session.order.spiciness =
+                $global.getSlot(
+                    $parseTree,
+                    "Spiciness"
                 );
 
-            } else {
-
-                var index =
-                    $jsapi.random(
-                        missing.length
-                    );
-
-                var parameter =
-                    missing[index];
+        a: Острота сохранена.
+        go!: /ContinueOrder
 
 
-                $session.missingParameter =
-                    parameter;
+state: AskQuantity
 
+    a: Сколько пицц заказать?
 
-                if (parameter === "pizza") {
-
-                    $reactions.transition(
-                        "/AskPizza"
-                    );
-
-                } else if (
-                    parameter === "size"
-                ) {
-
-                    $reactions.transition(
-                        "/AskSize"
-                    );
-
-                } else if (
-                    parameter === "base"
-                ) {
-
-                    $reactions.transition(
-                        "/AskBase"
-                    );
-
-                } else if (
-                    parameter === "toppings"
-                ) {
-
-                    $reactions.transition(
-                        "/AskTopping"
-                    );
-
-                } else if (
-                    parameter === "spiciness"
-                ) {
-
-                    $reactions.transition(
-                        "/AskSpiciness"
-                    );
-
-                } else if (
-                    parameter === "quantity"
-                ) {
-
-                    $reactions.transition(
-                        "/AskQuantity"
-                    );
-
-                } else if (
-                    parameter === "address"
-                ) {
-
-                    $reactions.transition(
-                        "/AskAddress"
-                    );
-
-                } else if (
-                    parameter === "phone"
-                ) {
-
-                    $reactions.transition(
-                        "/AskPhone"
-                    );
-
-                } else if (
-                    parameter ===
-                    "deliveryTime"
-                ) {
-
-                    $reactions.transition(
-                        "/AskDeliveryTime"
-                    );
-
-                } else if (
-                    parameter === "payment"
-                ) {
-
-                    $reactions.transition(
-                        "/AskPaymentMethod"
-                    );
-                }
-            }
-
-
-
-    state: AskPizza
-
-        a: Какую пиццу хотите?
-        a: Например: Маргариту, Американу, Американа Hot или Сохо.
-
-
-
-    state: AskSize
-
-        a: Какой размер пиццы выбрать?
-        a: Маленький, средний или большой?
-
-
-
-    state: AskBase
-
-        a: Какую основу выбрать?
-        a: Тонкую или пышную?
-
-
-
-    state: AskTopping
-
-        a: Какую начинку добавить?
-        a: Например: моцареллу, пепперони, томаты, оливки или халапеньо.
-
-
-
-    state: AskSpiciness
-
-        a: Какую остроту выбрать?
-        a: Неострую, средней остроты или острую?
-
-
-
-    state: AskQuantity
-
-        a: Сколько пицц заказать?
-
-
-
-    state: AskAddress
-
-        InputText:
-            prompt = Укажите полный адрес доставки. Например: ул. Ленина, д. 15, кв. 24
-            varName = tempAddress
-            then = /SaveAddress
-
-
-
-    state: SaveAddress
+    state: Receive
+        intent: /SetQuantity
 
         script:
+            $session.order.quantity =
+                Number(
+                    $global.getSlot(
+                        $parseTree,
+                        "Quantity"
+                    )
+                );
 
-            if (!$session.order) {
-                $session.order =
-                    createOrder();
-            }
-
-            $session.order.deliveryAddress =
-                $session.tempAddress;
-
-            delete $session.tempAddress;
-
-        a: Адрес доставки сохранён: {{$session.order.deliveryAddress}}.
-
-        go!: /CheckOrder
+        a: Количество сохранено.
+        go!: /ContinueOrder
 
 
+state: AskAddress
 
-    state: AskPhone
+    a: Укажите полный адрес доставки.
 
-        InputPhoneNumber:
-            prompt = Укажите номер телефона для связи с курьером.
-            varName = tempPhone
-            then = /SavePhone
-
-
-
-    state: SavePhone
+    state: Receive
+        q: *
 
         script:
+            $session.order.address =
+                $request.query;
 
-            if (!$session.order) {
-                $session.order =
-                    createOrder();
-            }
+        a: Адрес доставки сохранён.
+        go!: /ContinueOrder
 
+
+state: AskPhone
+
+    a: Укажите номер телефона для связи с курьером.
+
+    state: Receive
+        q: *
+
+        script:
             $session.order.phone =
-                $session.tempPhone;
-
-            delete $session.tempPhone;
+                $request.query;
 
         a: Номер телефона сохранён.
-
-        go!: /CheckOrder
-
+        go!: /ContinueOrder
 
 
-    state: AskDeliveryTime
+state: AskDeliveryTime
 
-        a: Когда доставить заказ?
-        a: Например: «к 18:00», «через час» или «сегодня вечером».
+    a: Когда доставить заказ?
+    a: Например: «к 18:00», «через час» или «сегодня вечером».
 
-
-
-    state: AskPaymentMethod
-
-        a: Как будете оплачивать заказ?
-
-        buttons:
-            "Наличными" -> /PaymentCash
-            "Картой" -> /PaymentCard
-            "Онлайн" -> /PaymentOnline
-
-
-
-    state: PaymentCash
+    state: Receive
+        intent: /SetDeliveryTime
 
         script:
+            $session.order.deliveryTime =
+                $global.getSlot(
+                    $parseTree,
+                    "DeliveryTime"
+                );
 
-            if (!$session.order) {
-                $session.order =
-                    createOrder();
-            }
-
-            $session.order.paymentMethod = {
-                id: "cash",
-                name: "наличными"
-            };
-
-        a: Оплата наличными.
-
-        go!: /CheckOrder
+        a: Время доставки сохранено.
+        go!: /ContinueOrder
 
 
+state: AskPaymentMethod
 
-    state: PaymentCard
+    a: Как будете оплачивать заказ?
+    a: Наличными или картой?
+
+    state: Receive
+        intent: /SetPaymentMethod
 
         script:
-
-            if (!$session.order) {
-                $session.order =
-                    createOrder();
-            }
-
-            $session.order.paymentMethod = {
-                id: "card_on_delivery",
-                name: "картой при получении"
-            };
-
-        a: Оплата картой при получении.
-
-        go!: /CheckOrder
-
-
-
-    state: PaymentOnline
-
-        script:
-
-            if (!$session.order) {
-                $session.order =
-                    createOrder();
-            }
-
-            $session.order.paymentMethod = {
-                id: "online",
-                name: "онлайн"
-            };
-
-        a: Выбрана онлайн-оплата.
-
-        go!: /CheckOrder
-
-
-
-    state: ConfirmOrder
-
-        script:
-
-            updatePrices(
-                $session.order
-            );
-
-            $reactions.answer(
-                getOrderText(
-                    $session.order
-                )
-            );
-
-
-            $reactions.answer(
-                "Стоимость пиццы: " +
-                $session.order.foodPrice +
-                " ₽."
-            );
-
-
-            if (
-                $session.order.deliveryPrice === 0
-            ) {
-
-                $reactions.answer(
-                    "Доставка: бесплатно."
+            $session.order.paymentMethod =
+                $global.getSlot(
+                    $parseTree,
+                    "PaymentMethod"
                 );
 
-            } else {
+        a: Способ оплаты сохранён.
+        go!: /ContinueOrder
 
-                $reactions.answer(
-                    "Доставка: " +
-                    $session.order.deliveryPrice +
-                    " ₽."
-                );
-            }
 
+state: CheckOrder
 
-            $reactions.answer(
-                "Итого: " +
-                $session.order.totalPrice +
-                " ₽."
-            );
+    a: {{$global.orderText($session.order)}}
+    a: Всё верно? Ответьте «да» или «нет».
 
+    state: Yes
+        intent: /ConfirmOrder
 
-            $reactions.answer(
-                "Всё верно?"
-            );
+        a: Заказ подтверждён!
+        go!: /CompleteOrder
 
-        buttons:
-            "Подтвердить" -> /CompleteOrder
-            "Изменить" -> /ChangeOrder
-            "Комментарий" -> /AskDeliveryComment
-            "Отменить" -> /CancelByButton
+    state: No
+        intent: /RejectOrder
 
+        a: Хорошо. Что хотите изменить?
 
 
-    state: AskDeliveryComment
+state: CompleteOrder
 
-        InputText:
-            prompt = Напишите комментарий для курьера. Например: «подъезд 2, домофон 24». Если комментария нет, напишите «нет».
-            varName = tempDeliveryComment
-            then = /SaveDeliveryComment
+    script:
+        $global.calc($session.order);
 
+    a: Заказ оформлен!
+    a: {{$global.orderText($session.order)}}
+    a: Спасибо за заказ!
 
+    script:
+        $jsapi.stopSession();
 
-    state: SaveDeliveryComment
 
-        script:
+state: CancelOrder
+    intent!: /CancelOrder
 
-            if (!$session.order) {
-                $session.order =
-                    createOrder();
-            }
+    a: Заказ отменён.
 
-            if (
-                $session.tempDeliveryComment ===
-                "нет"
-            ) {
+    script:
+        $jsapi.stopSession();
 
-                $session.order.deliveryComment =
-                    null;
 
-            } else {
+state: Help
+    intent!: /Help
 
-                $session.order.deliveryComment =
-                    $session.tempDeliveryComment;
-            }
+    a: Можно сразу написать несколько параметров заказа, например:
+    a: «Хочу большую острую Американу на тонком тесте с пепперони».
 
 
-            delete $session.tempDeliveryComment;
+state: NoMatch
+    event!: noMatch
 
-        a: Комментарий к доставке сохранён.
-
-        go!: /ConfirmOrder
-
-
-
-    state: ConfirmByIntent
-        intent!: /ConfirmOrder
-
-        if: $session.order && orderIsComplete($session.order)
-            go!: /CompleteOrder
-
-        else:
-            a: В заказе ещё не хватает некоторых данных.
-            go!: /CheckOrder
-
-
-
-    state: ChangeOrder
-        intent!: /ChangeOrder
-
-        a: Что хотите изменить?
-
-        buttons:
-            "Пиццу" -> /AskPizza
-            "Размер" -> /AskSize
-            "Основу" -> /AskBase
-            "Начинку" -> /AskTopping
-            "Остроту" -> /AskSpiciness
-            "Количество" -> /AskQuantity
-            "Адрес" -> /AskAddress
-            "Телефон" -> /AskPhone
-            "Время" -> /AskDeliveryTime
-            "Оплату" -> /AskPaymentMethod
-            "Комментарий" -> /AskDeliveryComment
-            "Назад" -> /ConfirmOrder
-
-
-
-    state: ShowOrder
-        intent!: /ShowOrder
-
-        script:
-
-            if (!$session.order) {
-
-                $reactions.answer(
-                    "Сейчас активного заказа нет."
-                );
-
-            } else {
-
-                updatePrices(
-                    $session.order
-                );
-
-                $reactions.answer(
-                    getOrderText(
-                        $session.order
-                    )
-                );
-
-
-                if (
-                    $session.order.pizza &&
-                    $session.order.quantity
-                ) {
-
-                    $reactions.answer(
-                        "Текущая стоимость: " +
-                        $session.order.totalPrice +
-                        " ₽."
-                    );
-                }
-            }
-
-
-
-    state: CompleteOrder
-
-        script:
-
-            if (!$session.order) {
-
-                $reactions.answer(
-                    "Активного заказа нет."
-                );
-
-            } else {
-
-                updatePrices(
-                    $session.order
-                );
-
-
-                $reactions.answer(
-                    "✅ Заказ подтверждён!"
-                );
-
-
-                $reactions.answer(
-                    getOrderText(
-                        $session.order
-                    )
-                );
-
-
-                if (
-                    $session.order.deliveryPrice === 0
-                ) {
-
-                    $reactions.answer(
-                        "Доставка бесплатная."
-                    );
-
-                } else {
-
-                    $reactions.answer(
-                        "Стоимость доставки: " +
-                        $session.order.deliveryPrice +
-                        " ₽."
-                    );
-                }
-
-
-                $reactions.answer(
-                    "Итоговая стоимость: " +
-                    $session.order.totalPrice +
-                    " ₽."
-                );
-
-
-                $reactions.answer(
-                    "🍕 Передаём заказ на кухню."
-                );
-
-
-                $session.lastOrder =
-                    $session.order;
-
-
-                $session.order = null;
-
-
-                delete $session.missingParameter;
-            }
-
-
-
-    state: CancelOrder
-        intent!: /CancelOrder
-
-        script:
-
-            $session.order = null;
-
-            delete $session.missingParameter;
-
-        a: Заказ отменён.
-        a: Чтобы оформить новый заказ, просто напишите, какую пиццу хотите.
-
-
-
-    state: CancelByButton
-
-        script:
-
-            $session.order = null;
-
-            delete $session.missingParameter;
-
-        a: Заказ отменён.
-        a: Чтобы оформить новый заказ, просто напишите, какую пиццу хотите.
-
-
-
-    state: NoMatch || noContext=true
-        event!: noMatch
-
-        a: Не совсем понял вас.
-        a: Например, можно написать: «Хочу большую Американу на тонком тесте».
+    a: Не совсем понял вас. Попробуйте сформулировать запрос ещё раз.
