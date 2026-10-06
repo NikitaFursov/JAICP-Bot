@@ -1,125 +1,327 @@
-global.createOrder = function() {
+@@ -0,0 +1,326 @@
+function createOrder() {
     return {
-        pizzaName: null,
-        pizzaSize: null,
-        pizzaBase: null,
-        pizzaTopping: null,
+        pizza: null,
+        size: null,
+        base: null,
+        toppings: [],
         spiciness: null,
         quantity: null,
-        address: null,
+
+        deliveryAddress: null,
         phone: null,
         deliveryTime: null,
         paymentMethod: null,
-        unitPrice: 0,
-        subtotal: 0,
-        delivery: 0,
-        total: 0
+        deliveryComment: null,
+
+        foodPrice: 0,
+        deliveryPrice: 0,
+        totalPrice: 0
     };
-};
+}
 
-global.getSlot = function(parseTree, name) {
-    var node = parseTree["_" + name];
 
-    if (node !== undefined && node !== null) {
-        return node;
+function toArray(value) {
+    if (!value) {
+        return [];
     }
 
-    return null;
-};
-
-global.saveSlots = function(order, parseTree) {
-    var v;
-
-    v = global.getSlot(parseTree, "PizzaName");
-    if (v) order.pizzaName = v;
-
-    v = global.getSlot(parseTree, "PizzaSize");
-    if (v) order.pizzaSize = v;
-
-    v = global.getSlot(parseTree, "PizzaBase");
-    if (v) order.pizzaBase = v;
-
-    v = global.getSlot(parseTree, "PizzaTopping");
-    if (v) order.pizzaTopping = v;
-
-    v = global.getSlot(parseTree, "Spiciness");
-    if (v) order.spiciness = v;
-
-    v = global.getSlot(parseTree, "Quantity");
-    if (v) order.quantity = Number(v);
-
-    v = global.getSlot(parseTree, "DeliveryTime");
-    if (v) order.deliveryTime = v;
-
-    v = global.getSlot(parseTree, "PaymentMethod");
-    if (v) order.paymentMethod = v;
-};
-
-global.nextState = function(o) {
-    var m = [];
-
-    if (!o.pizzaName) m.push("/AskPizzaName");
-    if (!o.pizzaSize) m.push("/AskPizzaSize");
-    if (!o.pizzaBase) m.push("/AskPizzaBase");
-    if (!o.pizzaTopping) m.push("/AskPizzaTopping");
-    if (!o.spiciness) m.push("/AskSpiciness");
-    if (!o.quantity) m.push("/AskQuantity");
-    if (!o.address) m.push("/AskAddress");
-    if (!o.phone) m.push("/AskPhone");
-    if (!o.deliveryTime) m.push("/AskDeliveryTime");
-    if (!o.paymentMethod) m.push("/AskPaymentMethod");
-
-    if (m.length === 0) {
-        return "/CheckOrder";
+    if (Array.isArray(value)) {
+        return value;
     }
 
-    return m[$jsapi.random(m.length)];
-};
+    return [value];
+}
 
-global.calc = function(o) {
-    var prices = {
-        "Маргарита": 550,
-        "Американа": 650,
-        "Американа Hot": 750,
-        "Сохо": 700
-    };
 
-    var p = prices[o.pizzaName] || 600;
+function applyOrderSlots(order, parseTree) {
 
-    if (o.pizzaSize === "большая") p += 100;
-    if (o.pizzaSize === "маленькая") p -= 50;
+    if (parseTree._pizza) {
+        order.pizza = parseTree._pizza;
+    }
 
-    if (o.pizzaBase === "толстая") p += 100;
-    if (o.pizzaBase === "американская") p += 150;
+    if (parseTree._size) {
+        order.size = parseTree._size;
+    }
 
-    if (o.pizzaTopping === "пепперони") p += 150;
-    if (o.pizzaTopping === "моцарелла") p += 80;
-    if (o.pizzaTopping === "томаты") p += 50;
-    if (o.pizzaTopping === "оливки") p += 60;
-    if (o.pizzaTopping === "халапеньо") p += 70;
+    if (parseTree._base) {
+        order.base = parseTree._base;
+    }
 
-    if (o.spiciness === "средняя") p += 50;
-    if (o.spiciness === "острая") p += 80;
+    if (parseTree._toppings) {
+        order.toppings = toArray(parseTree._toppings);
+    }
 
-    o.unitPrice = p;
-    o.subtotal = p * (Number(o.quantity) || 1);
-    o.delivery = o.subtotal >= 2000 ? 0 : 150;
-    o.total = o.subtotal + o.delivery;
-};
+    if (parseTree._spiciness) {
+        order.spiciness = parseTree._spiciness;
+    }
 
-global.orderText = function(o) {
-    global.calc(o);
+    if (parseTree._quantity) {
+        order.quantity = parseTree._quantity;
+    }
+}
 
-    return "Заказ:\n"
-        + "Пицца: " + (o.pizzaName || "—") + "\n"
-        + "Размер: " + (o.pizzaSize || "—") + "\n"
-        + "Основа: " + (o.pizzaBase || "—") + "\n"
-        + "Начинка: " + (o.pizzaTopping || "—") + "\n"
-        + "Острота: " + (o.spiciness || "—") + "\n"
-        + "Количество: " + (o.quantity || "—") + "\n"
-        + "Адрес: " + (o.address || "—") + "\n"
-        + "Телефон: " + (o.phone || "—") + "\n"
-        + "Время: " + (o.deliveryTime || "—") + "\n"
-        + "Оплата: " + (o.paymentMethod || "—") + "\n"
-        + "Итого: " + o.total + " ₽";
-};
+
+function getToppingsText(toppings) {
+
+    if (!toppings || toppings.length === 0) {
+        return "не выбрана";
+    }
+
+    var names = [];
+
+    for (var i = 0; i < toppings.length; i++) {
+
+        if (toppings[i] && toppings[i].name) {
+            names.push(toppings[i].name);
+        } else {
+            names.push(String(toppings[i]));
+        }
+    }
+
+    return names.join(", ");
+}
+
+
+function getDeliveryTimeText(time) {
+
+    if (!time) {
+        return "не указано";
+    }
+
+    if (typeof time === "string") {
+        return time;
+    }
+
+    if (
+        typeof time.hour !== "undefined" &&
+        typeof time.minute !== "undefined"
+    ) {
+        var minutes = String(time.minute);
+
+        if (minutes.length === 1) {
+            minutes = "0" + minutes;
+        }
+
+        return String(time.hour) + ":" + minutes;
+    }
+
+    if (time.value) {
+        return String(time.value);
+    }
+
+    return String(time);
+}
+
+
+function updatePrices(order) {
+
+    var onePizzaPrice = 0;
+
+    if (order.pizza && order.pizza.basePrice) {
+        onePizzaPrice += Number(
+            order.pizza.basePrice
+        );
+    }
+
+    if (order.size && order.size.priceAdd) {
+        onePizzaPrice += Number(
+            order.size.priceAdd
+        );
+    }
+
+    if (order.base && order.base.priceAdd) {
+        onePizzaPrice += Number(
+            order.base.priceAdd
+        );
+    }
+
+    if (order.toppings) {
+
+        for (
+            var i = 0;
+            i < order.toppings.length;
+            i++
+        ) {
+
+            if (
+                order.toppings[i] &&
+                order.toppings[i].priceAdd
+            ) {
+
+                onePizzaPrice += Number(
+                    order.toppings[i].priceAdd
+                );
+            }
+        }
+    }
+
+    var quantity = Number(order.quantity);
+
+    if (!quantity || quantity < 1) {
+        quantity = 1;
+    }
+
+    order.foodPrice =
+        onePizzaPrice * quantity;
+
+    if (order.foodPrice >= 2000) {
+        order.deliveryPrice = 0;
+    } else {
+        order.deliveryPrice = 150;
+    }
+
+    order.totalPrice =
+        order.foodPrice +
+        order.deliveryPrice;
+}
+
+
+function orderIsComplete(order) {
+
+    if (!order) {
+        return false;
+    }
+
+    if (!order.pizza) {
+        return false;
+    }
+
+    if (!order.size) {
+        return false;
+    }
+
+    if (!order.base) {
+        return false;
+    }
+
+    if (
+        !order.toppings ||
+        order.toppings.length === 0
+    ) {
+        return false;
+    }
+
+    if (!order.spiciness) {
+        return false;
+    }
+
+    if (!order.quantity) {
+        return false;
+    }
+
+    if (!order.deliveryAddress) {
+        return false;
+    }
+
+    if (!order.phone) {
+        return false;
+    }
+
+    if (!order.deliveryTime) {
+        return false;
+    }
+
+    if (!order.paymentMethod) {
+        return false;
+    }
+
+    return true;
+}
+
+
+function getOrderText(order) {
+
+    if (!order) {
+        return "Заказ пока пуст.";
+    }
+
+    var pizza = "не выбрана";
+    var size = "не выбран";
+    var base = "не выбрана";
+    var spiciness = "не выбрана";
+    var quantity = "не указано";
+
+    var address = "не указан";
+    var phone = "не указан";
+    var deliveryTime = "не указано";
+    var payment = "не выбран";
+    var comment = "нет";
+
+    if (order.pizza) {
+        pizza =
+            order.pizza.name ||
+            String(order.pizza);
+    }
+
+    if (order.size) {
+        size =
+            order.size.name ||
+            String(order.size);
+    }
+
+    if (order.base) {
+        base =
+            order.base.name ||
+            String(order.base);
+    }
+
+    if (order.spiciness) {
+        spiciness =
+            order.spiciness.name ||
+            String(order.spiciness);
+    }
+
+    if (order.quantity) {
+        quantity =
+            String(order.quantity);
+    }
+
+    if (order.deliveryAddress) {
+        address =
+            order.deliveryAddress;
+    }
+
+    if (order.phone) {
+        phone =
+            order.phone;
+    }
+
+    if (order.deliveryTime) {
+        deliveryTime =
+            getDeliveryTimeText(
+                order.deliveryTime
+            );
+    }
+
+    if (order.paymentMethod) {
+        payment =
+            order.paymentMethod.name ||
+            String(order.paymentMethod);
+    }
+
+    if (order.deliveryComment) {
+        comment =
+            order.deliveryComment;
+    }
+
+    var toppings =
+        getToppingsText(
+            order.toppings
+        );
+
+    return "Ваш заказ:\n" +
+        "Пицца: " + pizza + "\n" +
+        "Размер: " + size + "\n" +
+        "Основа: " + base + "\n" +
+        "Начинка: " + toppings + "\n" +
+        "Острота: " + spiciness + "\n" +
+        "Количество: " + quantity + "\n\n" +
+
+        "Доставка:\n" +
+        "Адрес: " + address + "\n" +
+        "Телефон: " + phone + "\n" +
+        "Время: " + deliveryTime + "\n" +
+        "Оплата: " + payment + "\n" +
+        "Комментарий: " + comment;
+}
