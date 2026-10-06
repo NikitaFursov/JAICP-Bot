@@ -1,4 +1,44 @@
-require: helpers.js
+require: functions.js
+
+theme: /
+
+state: Start
+    q!: $regex</start>
+
+    script:
+        $session.order = global.createOrder();
+
+    a: Здравствуйте! Я бот пиццерии.
+    a: Помогу оформить заказ.
+    a: Например: «Хочу большую острую Американу на тонком тесте с пепперони».
+
+state: Greeting
+    intent!: /Greeting
+
+    a: Здравствуйте! Чем могу помочь?
+
+state: OrderPizza
+    intent!: /OrderPizza
+
+    script:
+        if (!$session.order) {
+            $session.order = global.createOrder();
+        }
+
+        global.saveSlots(
+            $session.order,
+            $parseTree
+        );
+
+        global.calc(
+            $session.order
+        );
+
+        $reactions.transition(
+            global.nextState(
+                $session.order
+            )
+        );
 
 theme: /
 
