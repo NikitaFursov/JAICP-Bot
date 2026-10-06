@@ -84,6 +84,20 @@
       "text" : "Мне среднюю Маргариту без остроты"
     }, {
       "text" : "Хочу заказать Американу с халапеньо"
+    }, {
+      "text" : "Хочу @PizzaSize @Spiciness @PizzaName на @PizzaBase с @PizzaTopping"
+    }, {
+      "text" : "Закажи @PizzaName @PizzaSize на @PizzaBase с @PizzaTopping"
+    }, {
+      "text" : "Мне @PizzaName @Spiciness @PizzaSize на @PizzaBase"
+    }, {
+      "text" : "Хочу @PizzaSize пиццу с @PizzaTopping"
+    }, {
+      "text" : "Две @PizzaSize @PizzaName на @PizzaBase"
+    }, {
+      "text" : "Хочу @PizzaName с @PizzaTopping"
+    }, {
+      "text" : "Закажи @PizzaSize @Spiciness @PizzaName"
     } ],
     "classificationRules" : {
       "refs" : [ ]
@@ -438,6 +452,8 @@
       "text" : "доставьте к @duckling.time"
     }, {
       "text" : "нужно к @duckling.time"
+    }, {
+      "text" : "на @duckling.time"
     } ],
     "classificationRules" : {
       "refs" : [ ]
