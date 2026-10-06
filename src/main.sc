@@ -1,3 +1,5 @@
+theme: /
+
 init:
 
     $global.createOrder = function() {
@@ -126,8 +128,6 @@ init:
             + "Итого: " + o.total + " ₽";
     };
 
-
-theme: /
 
 state: Start
     q!: $regex</start>
